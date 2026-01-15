@@ -12,6 +12,7 @@ const AddSpeciality = () => {
   const [specialities, setSpecialities] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSeats, setEditingSeats] = useState({});
+  const [editingName, setEditingName] = useState({});
   const [formData, setFormData] = useState({
     name: '',
     department: '',
@@ -67,29 +68,37 @@ const AddSpeciality = () => {
     }
   };
 
-  const handleSeatsEdit = (specialityId, currentSeats) => {
+  const handleSeatsEdit = (specialityId, currentSeats, currentName) => {
     setEditingSeats({ ...editingSeats, [specialityId]: currentSeats });
+    setEditingName({ ...editingName, [specialityId]: currentName });
   };
 
   const updateSpecialitySeats = async (specialityId) => {
     try {
       const newSeats = editingSeats[specialityId];
+      const newName = editingName[specialityId];
       if (!newSeats || newSeats < 1) {
         toast.error('Please enter valid number of seats');
         return;
       }
-      await specialityAPI.updateSeats(specialityId, { totalSeats: parseInt(newSeats) });
-      toast.success('Seats updated successfully!');
+      if (!newName || newName.trim() === '') {
+        toast.error('Please enter valid speciality name');
+        return;
+      }
+      await specialityAPI.updateSeats(specialityId, { totalSeats: parseInt(newSeats), name: newName.trim() });
+      toast.success('Speciality updated successfully!');
       setEditingSeats({ ...editingSeats, [specialityId]: undefined });
+      setEditingName({ ...editingName, [specialityId]: undefined });
       fetchSpecialities();
     } catch (error) {
       // console.error('Update error:', error);
-      toast.error('Failed to update seats');
+      toast.error('Failed to update speciality');
     }
   };
 
   const handleSeatsCancel = (specialityId) => {
     setEditingSeats({ ...editingSeats, [specialityId]: undefined });
+    setEditingName({ ...editingName, [specialityId]: undefined });
   };
 
   const handleChange = (e) => {
@@ -173,7 +182,16 @@ const AddSpeciality = () => {
                 specialities.map((speciality, index) => (
                   <tr key={speciality._id || index} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {speciality.name}
+                      {editingName[speciality._id] !== undefined ? (
+                        <input
+                          type="text"
+                          value={editingName[speciality._id]}
+                          onChange={(e) => setEditingName({ ...editingName, [speciality._id]: e.target.value })}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        speciality.name
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {speciality.department?.name || 'N/A'}
@@ -219,7 +237,7 @@ const AddSpeciality = () => {
                         </div>
                       ) : (
                         <button
-                          onClick={() => handleSeatsEdit(speciality._id, speciality.totalSeats)}
+                          onClick={() => handleSeatsEdit(speciality._id, speciality.totalSeats, speciality.name)}
                           className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
                         >
                           Edit

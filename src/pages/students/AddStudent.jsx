@@ -231,7 +231,7 @@ const AddStudent = () => {
           <span>Back to students</span>
         </button>
         <div className="min-w-0 flex-1 text-right mr-10">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mr-20">Add Students</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mr-20">Add Student</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Enter student information to add to the system</p>
         </div>
       </div>

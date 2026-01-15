@@ -420,13 +420,42 @@ button, .btn, input, select, textarea {
 
 /* Simple color scheme buttons */
 button {
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   text-shadow: none !important;
 }
 
-.bg-blue-400, .bg-blue-500 {
-  background-color: #93c5fd !important;
+/* All blue background buttons */
+.bg-blue-50, .bg-blue-100, .bg-blue-200, .bg-blue-300, .bg-blue-400, .bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-blue-800, .bg-blue-900 {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Blue button hover states */
+.hover\:bg-blue-200:hover, .hover\:bg-blue-300:hover, .hover\:bg-blue-400:hover, .hover\:bg-blue-500:hover, .hover\:bg-blue-600:hover, .hover\:bg-blue-700:hover, .hover\:bg-blue-800:hover {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Blue text buttons */
+.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800 {
   color: #1e40af !important;
+  font-weight: 700 !important;
+}
+
+.hover\:text-blue-700:hover, .hover\:text-blue-800:hover, .hover\:text-blue-900:hover {
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+}
+
+/* Ensure button text and icons are visible */
+button.bg-blue-500, button.bg-blue-600, a.bg-blue-500, a.bg-blue-600 {
+  color: #ffffff !important;
+}
+
+button.bg-blue-500 *, button.bg-blue-600 *, a.bg-blue-500 *, a.bg-blue-600 * {
+  color: #ffffff !important;
 }
 
 .bg-green-400, .bg-green-500 {
