@@ -63,7 +63,8 @@ const Sidebar = ({ onNavigate }) => {
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Yes, logout!',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      // zIndex:"9999"
     }).then((result) => {
       if (result.isConfirmed) {
         logout();
@@ -299,7 +300,7 @@ const Sidebar = ({ onNavigate }) => {
       <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-t border-gray-200">
         <button
           onClick={handleLogout}
-          className="flex items-center w-full px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 space-x-2 sm:space-x-3 text-black transition-all duration-200 border rounded-lg sm:rounded-xl group hover:text-black hover:bg-gray-50 border-gray-200 hover:border-gray-300 touch-manipulation active:bg-gray-100"
+          className="flex items-center w-full z-[9999] px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 space-x-2 sm:space-x-3 text-black transition-all duration-200 border rounded-lg sm:rounded-xl group hover:text-black hover:bg-gray-50 border-gray-200 hover:border-gray-300 touch-manipulation active:bg-gray-100"
         >
           <HiLogout className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 group-hover:scale-110 flex-shrink-0" />
           <span className="text-xs sm:text-sm font-medium nav-font truncate">Logout</span>
