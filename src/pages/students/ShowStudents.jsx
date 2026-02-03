@@ -6,7 +6,7 @@ import { studentAPI, feeAPI, departmentAPI, specialityAPI } from '../../utils/ap
 import { useRole } from '../../context/RoleContext';
 import Loader from '../../components/Loader';
 import { PrintStudentListButton, PrintPageButton } from '../../components/PrintButton';
-import { HiSearch, HiPlus, HiEye, HiPencil, HiTrash, HiUsers, HiCheckCircle, HiCash, HiPrinter, HiRefresh } from 'react-icons/hi';
+import { HiSearch, HiPlus, HiEye, HiPencil, HiTrash, HiUsers, HiCheckCircle, HiCash, HiPrinter, HiRefresh, HiUpload } from 'react-icons/hi';
 import { FaRupeeSign } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
@@ -61,6 +61,18 @@ const ShowStudents = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const fileInputRef = React.useRef(null);
+
+  const formatAmount = (num) => {
+    if (!num || num === 0) return '0';
+    if (num >= 100000) {
+      return (num / 100000).toFixed(2).replace(/\.00$/, '') + 'L';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    }
+    return num.toLocaleString();
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -109,7 +121,7 @@ const ShowStudents = () => {
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
       setSpecialities(Array.isArray(specialitiesData) ? specialitiesData : []);
-      
+
       // Try to fetch fees separately and handle errors gracefully
       if (isSuperAdmin() || hasPermission('studentManagement') || hasPermission('feeManagement')) {
         try {
@@ -123,7 +135,7 @@ const ShowStudents = () => {
       } else {
         setFees([]);
       }
-      
+
       setError('');
     } catch (err) {
       // console.error('Error fetching data:', err);
@@ -158,17 +170,17 @@ const ShowStudents = () => {
     // Calculate paid amount from fee records
     const studentFees = fees.filter(fee => {
       const feeStudentId = fee.studentId?._id || fee.studentId;
-      return (feeStudentId === student._id) && 
-             (fee.status === 'paid' || fee.status === 'Paid' || fee.status === 'PAID');
+      return (feeStudentId === student._id) &&
+        (fee.status === 'paid' || fee.status === 'Paid' || fee.status === 'PAID');
     });
-    
+
     const paidFee = studentFees.reduce((sum, fee) => {
       return sum + Number(fee.paidAmount || fee.amount || 0);
     }, 0);
 
     const balanceAmount = Math.max(0, totalFee - paidFee);
     const status = balanceAmount <= 0 ? 'Paid' : paidFee > 0 ? 'Partial' : 'Due';
-    
+
     return { status, balanceAmount, totalFee, paidFee };
   };
 
@@ -180,7 +192,7 @@ const ShowStudents = () => {
         return false;
       }
     }
-    
+
     const departmentName = getDepartmentName(student.department);
     const specialityName = getSpecialityName(student.speciality);
 
@@ -260,14 +272,24 @@ const ShowStudents = () => {
     const excelData = filteredStudents.map(student => {
       const { status, balanceAmount, totalFee, paidFee } = calculateFeeStatus(student);
       return {
-        'Name': student.name || 'N/A',
-        'Roll Number': student.rollNumber || 'N/A',
+        'Name': student.name || '',
+        'Roll Number': student.rollNumber || '',
         'Department': getDepartmentName(student.department),
         'Speciality': getSpecialityName(student.speciality),
-        'Phone': student.phone || 'N/A',
-        'Email': student.email || 'N/A',
-        'Address': student.address || 'N/A',
-        'Date of Birth': formatDate(student.dateOfBirth),
+        'Phone': student.phone || '',
+        'Email': student.email || '',
+        'Address': student.address || '',
+        'Date of Birth': student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
+        'Parent Name': student.parentName || '',
+        'Parent Phone': student.parentPhone || '',
+        'Admission Date': student.admissionDate ? new Date(student.admissionDate).toISOString().split('T')[0] : '',
+        'Section': student.section || '',
+        'Fee Type': student.feeType || 'Annual',
+        'Tuition Fee': student.tuitionFee || 0,
+        'Hostel Fee': student.hostelFee || 0,
+        'Security Fee': student.securityFee || 0,
+        'Miscellaneous Fee': student.miscellaneousFee || 0,
+        'AC Charge': student.acCharge || 0,
         'Total Fee': totalFee || 0,
         'Paid Fee': paidFee || 0,
         'balance Amount': balanceAmount || 0,
@@ -283,6 +305,128 @@ const ShowStudents = () => {
     XLSX.writeFile(wb, fileName);
 
     toast.success('Excel file downloaded successfully!');
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const ws = workbook.Sheets[sheetName];
+
+        // Get raw data as array of arrays
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        let headerRowIndex = -1;
+        const keywords = ['name', 'roll', 'phone', 'dept', 'special', 'email', 'parent', 'father', 'admission', 'fee', 'enroll', 'enrol', 'reg', 'id'];
+
+        // Find the best header row (the one with most keyword matches)
+        let maxScore = 0;
+        for (let i = 0; i < Math.min(rawRows.length, 50); i++) {
+          const row = rawRows[i];
+          let score = 0;
+          row.forEach(cell => {
+            if (cell) {
+              const val = cell.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (keywords.some(kw => val.includes(kw))) score++;
+            }
+          });
+          if (score > maxScore) {
+            maxScore = score;
+            headerRowIndex = i;
+          }
+        }
+
+        if (headerRowIndex === -1 && rawRows.length > 0) {
+          // Fallback to first row that has data
+          headerRowIndex = rawRows.findIndex(r => r.some(c => c));
+        }
+
+        if (headerRowIndex === -1) {
+          toast.error('Could not find data in Excel');
+          return;
+        }
+
+        // Reconstruct Headers: scan from current header row UP to find labels for each column
+        const columnMap = rawRows[headerRowIndex].map((_, colIdx) => {
+          for (let r = headerRowIndex; r >= 0; r--) {
+            const label = (rawRows[r][colIdx] || '').toString().trim();
+            if (label) return label;
+          }
+          return `Column_${colIdx}`;
+        });
+
+        // Parse data rows starting after the header
+        const jsonData = [];
+        for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || !row.some(c => c)) continue;
+
+          const obj = {};
+          columnMap.forEach((label, idx) => {
+            obj[label] = row[idx];
+          });
+          jsonData.push(obj);
+        }
+
+        if (jsonData.length === 0) {
+          toast.error('No data rows found');
+          return;
+        }
+
+        console.log('Detected Headers:', columnMap);
+        console.log('Sample Data Object:', jsonData[0]);
+
+        setLoading(true);
+        const loadingToast = toast.loading('Importing data...');
+
+        try {
+          const response = await studentAPI.importExcel(jsonData);
+          toast.dismiss(loadingToast);
+
+          if (response.data.success) {
+            const { created, updated, failed, skipped, errors } = response.data.results;
+            toast.success(`Result: ${created} New, ${updated} Updated`, { duration: 4000 });
+
+            if (failed > 0 || skipped > 0) {
+              toast.error(`${failed + skipped} rows could not be processed`, { duration: 5000 });
+              if (errors && errors.length > 0) {
+                const errorLog = errors.map(e => `Roll: ${e.rollNumber}, Error: ${e.error}`).join('\n');
+                const blob = new Blob([errorLog], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'import_errors.txt';
+                a.click();
+              }
+            }
+            fetchStudents();
+          } else {
+            toast.error(response.data.message || 'Import failed');
+          }
+        } catch (apiError) {
+          toast.dismiss(loadingToast);
+          throw apiError;
+        }
+
+      } catch (error) {
+        console.error('Import error:', error);
+        toast.error('Failed to import data: ' + (error.response?.data?.message || error.message));
+        setLoading(false);
+      } finally {
+        if (e.target) e.target.value = ''; // Reset
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const getStatusBadge = (status) => {
@@ -347,6 +491,22 @@ const ShowStudents = () => {
             <span className="hidden sm:inline">Download Excel</span>
             <span className="sm:hidden">Excel</span>
           </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            className="flex items-center justify-center px-3 sm:px-4 lg:px-6 py-2 sm:py-3 space-x-2 text-white transition-all duration-300 rounded-lg sm:rounded-xl bg-indigo-500 hover:bg-indigo-600 shadow-lg hover:shadow-xl font-semibold text-xs sm:text-sm lg:text-base min-h-[40px] sm:min-h-[44px]"
+          >
+            <HiUpload className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+            <span className="hidden sm:inline">Import Excel</span>
+            <span className="sm:hidden">Import</span>
+          </button>
+
           {(isSuperAdmin() || hasPermission('studentManagement')) && (
             <button
               onClick={() => navigate('/students/add')}
@@ -420,7 +580,7 @@ const ShowStudents = () => {
             </div>
             <div className="ml-3 sm:ml-4 min-w-0 flex-1">
               <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Fee Amount</p>
-              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700 truncate">₹{students.reduce((sum, s) => sum + (s.totalFee || 0), 0).toLocaleString()}</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">₹{formatAmount(students.reduce((sum, s) => sum + (s.totalFee || 0), 0))}</p>
             </div>
           </div>
         </div>
@@ -487,6 +647,91 @@ const ShowStudents = () => {
 
       {/* Students List */}
       <div className="w-full max-w-full bg-white/80 backdrop-blur-sm shadow-lg rounded-2xl border border-white/20 card-hover">
+        {/* Pagination Controls - Show if more than 10 students */}
+        {filteredStudents.length > 10 && (
+          <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 sm:mt-6 px-3 sm:px-6 pb-4 sm:pb-6 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-xs sm:text-sm text-gray-600">Show:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={filteredStudents.length}>All</option>
+                </select>
+                <span className="text-xs sm:text-sm text-gray-600">per page</span>
+              </div>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex flex-wrap gap-1 sm:gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+
+                {[...Array(totalPages)].map((_, index) => {
+                  const page = index + 1;
+                  const isCurrentPage = page === currentPage;
+
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg ${isCurrentPage
+                          ? 'bg-blue-500 text-white'
+                          : 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  }
+
+                  // Show ellipsis
+                  if (
+                    (page === currentPage - 2 && currentPage > 3) ||
+                    (page === currentPage + 2 && currentPage < totalPages - 2)
+                  ) {
+                    return (
+                      <span key={page} className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  return null;
+                })}
+
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {/* Desktop Table View */}
         <div className="hidden lg:block p-6 overflow-hidden">
           <div className="overflow-x-auto">
@@ -570,10 +815,10 @@ const ShowStudents = () => {
                               {status}
                             </span>
                             <div className="text-sm font-medium text-gray-700">
-                              Total: ₹{totalFee.toLocaleString()}
+                              Total: ₹{formatAmount(totalFee)}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Balance: ₹{balanceAmount.toLocaleString()}
+                              Balance: ₹{formatAmount(balanceAmount)}
                             </div>
                           </div>
                         </td>
@@ -665,16 +910,16 @@ const ShowStudents = () => {
                       <div className="font-medium text-gray-700">{student.phone || 'N/A'}</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Total Fee:</span>
-                      <div className="font-medium text-gray-700">₹{totalFee.toLocaleString()}</div>
+                      <span className="text-gray-500 font-medium">Total Fee:</span>
+                      <div className="font-semibold text-gray-800">₹{formatAmount(totalFee)}</div>
                     </div>
                   </div>
 
                   {/* Fee Info */}
-                  <div className="flex justify-between items-center mb-3 p-2 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="text-xs">
-                      <span className="text-gray-500">Due Amount:</span>
-                      <div className="font-semibold text-red-600">₹{balanceAmount.toLocaleString()}</div>
+                      <span className="text-gray-500 font-medium text-[10px] uppercase tracking-wider">Due Amount</span>
+                      <div className="font-bold text-red-600 text-base">₹{formatAmount(balanceAmount)}</div>
                     </div>
                   </div>
 
@@ -709,87 +954,7 @@ const ShowStudents = () => {
           </div>
         </div>
 
-        {/* Pagination Controls - Only show if more than 50 students */}
-        {filteredStudents.length > 50 && (
-          <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 sm:mt-6 px-3 sm:px-6 pb-4 sm:pb-6 gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-              <div className="text-xs sm:text-sm text-gray-600">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
-              </div>
-              <div className="flex items-center space-x-2">
-                <label className="text-xs sm:text-sm text-gray-600">Show:</label>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value={50}>50</option>
-                  <option value={filteredStudents.length}>All</option>
-                </select>
-                <span className="text-xs sm:text-sm text-gray-600">per page</span>
-              </div>
-            </div>
 
-            {totalPages > 1 && (
-              <div className="flex flex-wrap gap-1 sm:gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-
-                {[...Array(totalPages)].map((_, index) => {
-                  const page = index + 1;
-                  const isCurrentPage = page === currentPage;
-
-                  // Show first page, last page, current page, and pages around current
-                  if (
-                    page === 1 ||
-                    page === totalPages ||
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  ) {
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg ${isCurrentPage
-                          ? 'bg-blue-500 text-white'
-                          : 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  }
-
-                  // Show ellipsis
-                  if (
-                    (page === currentPage - 2 && currentPage > 3) ||
-                    (page === currentPage + 2 && currentPage < totalPages - 2)
-                  ) {
-                    return (
-                      <span key={page} className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm text-gray-400">
-                        ...
-                      </span>
-                    );
-                  }
-
-                  return null;
-                })}
-
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
 

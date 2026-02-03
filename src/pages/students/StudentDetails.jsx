@@ -84,32 +84,32 @@ const StudentDetails = () => {
     try {
       setLoading(true);
       // console.log('Loading student data for ID:', id);
-      
+
       // Load student data with cache busting
       const studentRes = await studentAPI.getById(id);
       // console.log('Student API response:', studentRes.data);
-      
+
       const studentData = studentRes.data.data || studentRes.data;
       // console.log('Student data:', studentData);
-      
+
       // Calculate paid amount from fees
       let totalPaidAmount = 0;
       try {
         const feesRes = await feeAPI.getByStudentId(id);
         const feesData = feesRes.data.fees || feesRes.data.data || feesRes.data || [];
         // console.log('Fees data:', feesData);
-        
+
         totalPaidAmount = feesData
           .filter(fee => fee.status === 'paid')
           .reduce((sum, fee) => sum + (fee.paidAmount || fee.amount || 0), 0);
-        
+
         // console.log('Total paid amount calculated:', totalPaidAmount);
         setFees(Array.isArray(feesData) ? feesData : []);
       } catch (feeError) {
         // console.log('No fees found for student:', feeError);
         setFees([]);
       }
-      
+
       // Ensure fee fields are properly set with calculated values
       const processedStudent = {
         ...studentData,
@@ -122,10 +122,10 @@ const StudentDetails = () => {
         paidAmount: totalPaidAmount,
         balanceAmount: Math.max(0, (studentData.totalFee || 0) - totalPaidAmount)
       };
-      
+
       // console.log('Processed student data:', processedStudent);
       setStudent(processedStudent);
-      
+
     } catch (error) {
       // console.error('Error loading student data:', error);
       setStudent(null);
@@ -203,7 +203,7 @@ const StudentDetails = () => {
     // Debug: Check what's in the fee object
     // console.log('Fee object for printing:', fee);
     // console.log('Transaction ID:', fee.transactionId);
-    
+
     const printHTML = `
       <!DOCTYPE html>
       <html>
@@ -334,30 +334,30 @@ const StudentDetails = () => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
-    img.onload = function() {
+
+    img.onload = function () {
       canvas.width = img.width;
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
       const logoBase64 = canvas.toDataURL('image/png');
-      
+
       // Now create print content with base64 logo
       createPrintContent(logoBase64);
     };
-    
-    img.onerror = function() {
+
+    img.onerror = function () {
       // Fallback to SVG logo if image fails
       const svgLogo = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMzgiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI0Ii8+Cjx0ZXh0IHg9IjQwIiB5PSI0NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzAwMCI+Q0lNUzwvdGV4dD4KPC9zdmc+';
       createPrintContent(svgLogo);
     };
-    
+
     img.src = logo;
   };
-  
+
   const createPrintContent = (logoSrc) => {
     // Debug: Check student data before printing
     // console.log('Student data for printing:', student);
-    
+
     // Calculate fee breakdown with proper paid/Balances - only show fees with amounts
     const allFees = [
       { type: 'Tuition Fee', total: student?.tuitionFee || 0 },
@@ -366,14 +366,14 @@ const StudentDetails = () => {
       { type: 'Miscellaneous Fee', total: student?.miscellaneousFee || 0 },
       { type: 'AC Charge', total: student?.acCharge || 0 }
     ];
-    
+
     // Filter out fees with 0 amount
     const feeBreakdown = allFees.filter(fee => fee.total > 0);
-    
+
     // Calculate paid amounts for each fee type based on total paid amount
     const totalPaidAmount = student?.paidAmount || 0;
     let remainingPaid = totalPaidAmount;
-    
+
     feeBreakdown.forEach(fee => {
       if (remainingPaid >= fee.total) {
         fee.paid = fee.total;
@@ -388,11 +388,11 @@ const StudentDetails = () => {
         fee.due = fee.total;
       }
     });
-    
+
     // Separate paid and due fees
     const paidFees = feeBreakdown.filter(fee => fee.paid > 0);
     const dueFees = feeBreakdown.filter(fee => fee.due > 0);
-    
+
     // Create a complete print window with proper fee slip
     const printContent = `
       <html>
@@ -537,8 +537,8 @@ const StudentDetails = () => {
             <div class="summary-box">
               <strong>Fee Status</strong><br>
               ${(student?.balanceAmount || 0) <= 0 ? '<span style="color: #28a745;">COMPLETE</span>' :
-                (student?.paidAmount || 0) > 0 ? '<span style="color: #ffc107;">PARTIAL</span>' :
-                '<span style="color: #dc3545;">PENDING</span>'}
+        (student?.paidAmount || 0) > 0 ? '<span style="color: #ffc107;">PARTIAL</span>' :
+          '<span style="color: #dc3545;">PENDING</span>'}
             </div>
           </div>
           
@@ -577,7 +577,7 @@ const StudentDetails = () => {
         </body>
       </html>
     `;
-    
+
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(printContent);

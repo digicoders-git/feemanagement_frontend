@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 // Utility function to check token validity
 const isTokenValid = (token) => {
   if (!token) return false;
-  
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const currentTime = Date.now() / 1000;
@@ -25,7 +25,7 @@ const api = axios.create({
 // Add auth token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
-  
+
   if (token && isTokenValid(token)) {
     config.headers.Authorization = `Bearer ${token}`;
   } else if (token && !isTokenValid(token)) {
@@ -34,7 +34,7 @@ api.interceptors.request.use((config) => {
     localStorage.removeItem('admin');
     // Don't redirect here, let the 401 response handle it
   }
-  
+
   return config;
 });
 
@@ -44,10 +44,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
-      
+
       // Clear auth data and redirect to login for all 401 errors
       // console.warn('Authentication failed:', error.response?.data?.message || 'Unauthorized');
-      
+
       // Don't redirect if already on login page
       if (!window.location.pathname.includes('/login') && window.location.pathname !== '/') {
         localStorage.removeItem('authToken');
@@ -126,6 +126,11 @@ export const studentAPI = {
 
   delete: async (id) => {
     const response = await api.delete(`/students/${id}`);
+    return response;
+  },
+
+  importExcel: async (studentsData) => {
+    const response = await api.post('/students/import-excel', { students: studentsData });
     return response;
   }
 };
